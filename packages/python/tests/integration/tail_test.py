@@ -1,31 +1,30 @@
 import asyncio
 import signal
 import sys
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
-from posix_tools import spawn, tail
+from posix_tools import tail
 from posix_tools._spawn.group_alive import group_alive
 
 ROTATION = 15
 
 OWNER = """
 import asyncio, sys
-from contextlib import asynccontextmanager
-import posix_tools._tail.follow as follow
-from posix_tools import spawn, tail
+from posix_tools import tail
 
-@asynccontextmanager
+start = asyncio.create_subprocess_exec
+
 async def announce(*args, **options):
-    async with spawn(*args, **options) as process:
-        print(process.pid, flush=True)
-        yield process
+    process = await start(*args, **options)
+    print(process.pid, flush=True)
+    return process
 
-follow.spawn = announce
+asyncio.create_subprocess_exec = announce
 
 async def main():
     async with tail(sys.argv[1], follow=True) as lines:
@@ -36,18 +35,17 @@ asyncio.run(main())
 
 
 @pytest.fixture
-def processes(monkeypatch: pytest.MonkeyPatch) -> list[asyncio.subprocess.Process]:
+def processes() -> Iterator[list[asyncio.subprocess.Process]]:
     started: list[asyncio.subprocess.Process] = []
+    start = asyncio.create_subprocess_exec
 
-    @asynccontextmanager
-    async def recording(*args: str, **options: Any) -> AsyncIterator[asyncio.subprocess.Process]:
-        async with spawn(*args, **options) as process:
-            started.append(process)
-            yield process
+    async def recording(*args: Any, **options: Any) -> asyncio.subprocess.Process:
+        process = await start(*args, **options)
+        started.append(process)
+        return process
 
-    monkeypatch.setattr("posix_tools._tail.read.spawn", recording)
-    monkeypatch.setattr("posix_tools._tail.follow.spawn", recording)
-    return started
+    with patch("asyncio.create_subprocess_exec", recording):
+        yield started
 
 
 async def gone(pgid: int) -> None:

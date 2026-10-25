@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -11,7 +12,7 @@ type Opener = Callable[[Path, str], AbstractAsyncContextManager[AsyncIterator[by
 
 
 @pytest.fixture(autouse=True)
-def calls(monkeypatch: pytest.MonkeyPatch) -> Iterator[Calls]:
+def calls() -> Iterator[Calls]:
     recorded: Calls = []
 
     def opener(kind: str) -> Opener:
@@ -27,9 +28,11 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> Iterator[Calls]:
 
         return open_
 
-    monkeypatch.setattr(f"{__package__}.tail.read", opener("read"))
-    monkeypatch.setattr(f"{__package__}.tail.follow", opener("follow"))
-    yield recorded
+    with (
+        patch(f"{__package__}.tail.read", opener("read")),
+        patch(f"{__package__}.tail.follow", opener("follow")),
+    ):
+        yield recorded
 
 
 def describe_tail() -> None:
