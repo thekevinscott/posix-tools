@@ -1,5 +1,4 @@
 import asyncio
-import signal
 from collections.abc import Iterator
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
@@ -7,6 +6,9 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from posix_tools._spawn.close import close
+
+SIGINT = 2
+SIGTERM = 15
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +36,7 @@ def piped(data: bytes = b"", *, eof: bool = True) -> asyncio.StreamReader:
 
 
 def options(**overrides: Any) -> dict[str, Any]:
-    return {"signum": signal.SIGTERM, "grace": 1, "linger": 0} | overrides
+    return {"signum": SIGTERM, "grace": 1, "linger": 0} | overrides
 
 
 def describe_close() -> None:
@@ -49,13 +51,13 @@ def describe_close() -> None:
         process = Mock(stdin=None, stdout=piped(b"out"), stderr=piped(b"err"))
         drain = asyncio.get_running_loop().create_future()
         drain.set_result(None)
-        await close(process, (drain,), **options(signum=signal.SIGINT, grace=3))
+        await close(process, (drain,), **options(signum=SIGINT, grace=3))
         stop.assert_awaited_once()
         assert stop.await_args is not None
         (_, waiting), kwargs = stop.await_args
         assert waiting[0] is drain
         assert len(waiting) == 3
-        assert kwargs == {"signum": signal.SIGINT, "grace": 3}
+        assert kwargs == {"signum": SIGINT, "grace": 3}
         ended.assert_not_called()
 
     async def it_drains_owned_pipes_until_stopped(stop: AsyncMock) -> None:
@@ -82,6 +84,15 @@ def describe_close() -> None:
         await close(process, (), **options(linger=1))
         ended.assert_awaited_once_with(process, ())
         stop.assert_not_called()
+
+    async def it_treats_negative_linger_as_none(stop: AsyncMock, ended: AsyncMock) -> None:
+        await close(Mock(stdin=None, stdout=None, stderr=None), (), **options(linger=-1))
+        ended.assert_not_called()
+        stop.assert_awaited_once()
+
+    async def it_takes_options_by_keyword() -> None:
+        with pytest.raises(TypeError):
+            await close(Mock(), (), 15, 1, 0)  # type: ignore[call-arg]
 
     async def it_stops_when_linger_runs_out(stop: AsyncMock, ended: AsyncMock) -> None:
         ended.side_effect = forever

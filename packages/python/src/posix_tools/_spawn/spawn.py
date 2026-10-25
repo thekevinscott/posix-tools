@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import IO, Any
 
+from posix_tools._spawn.abandon import abandon
 from posix_tools._spawn.close import close
 from posix_tools._spawn.settle import settle
 
@@ -38,13 +39,3 @@ async def spawn(  # noqa: PLR0913
         clean = True
     finally:
         await close(process, drains, signum=signum, grace=grace, linger=linger if clean else 0)
-
-
-async def abandon(
-    starting: asyncio.Future[asyncio.subprocess.Process], *, signum: int, grace: float
-) -> None:
-    try:
-        process = await starting
-    except Exception:
-        return
-    await close(process, (), signum=signum, grace=grace, linger=0)

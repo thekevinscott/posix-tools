@@ -30,6 +30,21 @@ def describe_ended() -> None:
         assert group_alive.call_count == 2
         group_alive.assert_called_with(7)
 
+    async def it_polls_until_the_leader_exits() -> None:
+        process = Mock(returncode=None, pid=7)
+
+        async def exits(_: float) -> None:
+            process.returncode = 0
+
+        with patch(f"{__package__}.ended.asyncio.sleep", autospec=True, side_effect=exits) as sleep:
+            await ended(process, [])
+        sleep.assert_awaited_once_with(0.01)
+
+    async def it_returns_at_once_for_an_exited_leader_and_gone_group() -> None:
+        with patch(f"{__package__}.ended.asyncio.sleep", autospec=True) as sleep:
+            await ended(Mock(returncode=0, pid=7), [])
+        sleep.assert_not_called()
+
     async def it_leaves_drains_running_when_cancelled() -> None:
         drain = asyncio.get_running_loop().create_future()
         waiting = asyncio.ensure_future(ended(Mock(returncode=0), [drain]))
