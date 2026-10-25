@@ -36,6 +36,28 @@ asyncio.run(main())
 - **`linger`.** On normal exit only, wait this many seconds for the group to finish by itself before signalling.
 - **Pipes.** Pipes `child()` creates (`asyncio.subprocess.PIPE`) are owned: the body must stop reading them before it exits, and cleanup drains them. Descriptors you pass in, such as an open file, are borrowed and left open.
 
+## `posix_tools.tail`
+
+Follow a file the way `tail -F` does, as an async iterator of lines.
+
+```python
+from posix_tools.tail import tail
+
+
+async def main() -> None:
+    async with tail("app.log") as lines:
+        async for line in lines:
+            print(line)
+```
+
+`tail(path)` yields an async iterator of `bytes` lines, each with its trailing `\n`.
+
+- **From the start.** It reads the whole file, then waits for new lines.
+- **Follows the name.** It keeps going if the file is rotated or replaced, and waits if the file does not exist yet.
+- **Long lines.** A line longer than the stream buffer still arrives whole.
+- **Stopping.** Leaving the block, by `break`, error, or cancel, stops `tail` and reaps it. If your process dies, `tail` dies with it.
+- **Cancel-safe.** A cancelled `anext()` keeps the half-read line for the next call.
+
 ## Rules
 
 - Standard library only.
