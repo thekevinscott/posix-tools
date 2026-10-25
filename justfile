@@ -17,6 +17,9 @@ typecheck:
 test:
     cd packages/python && uv run pytest src
 
+test-integration:
+    cd packages/python && uv run pytest tests/integration
+
 build:
     cd packages/python && uv build
 
@@ -40,7 +43,7 @@ gha-lint:
 
 # ---- Aggregates ----------------------------------------------------------
 
-ci: lint gha-lint typecheck test
+ci: lint gha-lint typecheck test test-integration
 
 hooks:
     pre-commit install --install-hooks
