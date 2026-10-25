@@ -1,0 +1,1 @@
+**Added** `spawn()`: run a program as its own process group in an async context manager. On exit, error, or cancel the whole group is signalled, then killed after a grace period; owned pipes are drained and the process reaped, through further cancels.
