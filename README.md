@@ -17,11 +17,11 @@ Run a program as its own process group, and know the whole group is gone when th
 ```python
 import asyncio
 
-from posix_tools.process import child
+from posix_tools import process
 
 
 async def main() -> None:
-    async with child("sleep", "60") as proc:
+    async with process("sleep", "60") as proc:
         await asyncio.sleep(1)
     # sleep's process group has been stopped and reaped.
 
@@ -41,7 +41,7 @@ asyncio.run(main())
 Follow a file the way `tail -F` does, as an async iterator of lines.
 
 ```python
-from posix_tools.tail import tail
+from posix_tools import tail
 
 
 async def main() -> None:
