@@ -8,17 +8,8 @@ diataxis: tutorial
 
 ## Install
 
-<!-- Install commands per language. -->
-
 ```sh
-# rust
-cargo add <crate>
-
-# python
-pip install <package>
-
-# node
-npm install <package>
+uv add posix-tools
 ```
 
 ## Your first call

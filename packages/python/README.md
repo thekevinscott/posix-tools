@@ -1,5 +1,5 @@
-# mynewproduct (Python)
+# posix-tools (Python)
 
 ```
-pip install mynewproduct
+uv add posix-tools
 ```
