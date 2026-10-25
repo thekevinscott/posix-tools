@@ -1,14 +1,13 @@
 import { defineConfig } from 'vitepress'
 
 // Per-project value: a clone renames this along with the identical
-// `repository` URLs in packages/{node/package.json,python/pyproject.toml,rust/Cargo.toml}
-// (a find-and-replace of the URL covers all of them) and `base` below.
-const repository = 'https://github.com/thekevinscott/template-lib'
+// `repository` URL in packages/python/pyproject.toml and `base` below.
+const repository = 'https://github.com/thekevinscott/posix-tools'
 
 export default defineConfig({
   title: '',
   description: '',
-  base: '/template-lib/',
+  base: '/posix-tools/',
   cleanUrls: true,
   // AGENTS.md is an agent-facing contract, not site content — keep it out of
   // the build. The changelog/migration fragment folders are the raw record
