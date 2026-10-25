@@ -64,6 +64,26 @@ Use it with `async with` to stream lines, or `await` it to get them all as a `li
 - **Stopping.** Leaving the block, by `break`, error, or cancel, stops `tail` and reaps it. If your process dies, `tail` dies with it.
 - **Cancel-safe.** A cancelled `anext()` keeps the half-read line for the next call.
 
+## `clofork`
+
+Keep a file descriptor out of forked children, the way POSIX's `FD_CLOFORK` does. A child created by `fork()` without `exec` inherits every open descriptor, so a pipe end it holds never reaches EOF and a lock it holds stays held after the parent dies.
+
+```python
+import os
+
+from posix_tools import clofork
+
+read, write = os.pipe()
+with clofork(write):
+    ...  # a child forked in here does not hold `write`
+```
+
+`clofork(fd)` takes a descriptor or any object with `fileno()`.
+
+- **In the child.** The descriptor is pointed at `/dev/null`. The child lets go of what it referred to, and a file object wrapping it is still safe to close.
+- **Scope.** It covers forks inside the block. For a handle that outlives one block, enter it on a `contextlib.ExitStack` kept alongside the handle.
+- **Coverage.** Forks through `os.fork()`, which includes multiprocessing's `fork` start method. A C extension that calls `fork()` itself bypasses it. `exec` already drops non-inheritable descriptors, so `subprocess` needs nothing.
+
 ## Rules
 
 - Standard library only.
