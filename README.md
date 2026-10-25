@@ -45,9 +45,8 @@ from posix_tools import tail
 
 
 async def main() -> None:
-    # Last line. The stream ends when tail exits.
-    async with tail("app.log", n=1) as lines:
-        last = [line async for line in lines]
+    # Last line. Awaiting reads until tail exits.
+    [last] = await tail("app.log", n=1)
 
     # Live. The stream never ends; leaving the block stops tail.
     async with tail("app.log", follow=True) as lines:
@@ -56,6 +55,8 @@ async def main() -> None:
 ```
 
 `tail(path, n=10, follow=False)` yields an async iterator of `bytes` lines, each with its trailing `\n`.
+
+Use it with `async with` to stream lines, or `await` it to get them all as a `list[bytes]`. Awaiting with `follow=True` raises `TypeError`, since that stream never ends.
 
 - **`n`.** How many lines from the end to start with. `n=None` starts from the top of the file.
 - **`follow`.** Keep reading as the file grows. It keeps going if the file is rotated or replaced, and waits if the file does not exist yet. Without `follow`, a missing file raises `FileNotFoundError`.
