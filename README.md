@@ -38,22 +38,27 @@ asyncio.run(main())
 
 ## `posix_tools.tail`
 
-Follow a file the way `tail -F` does, as an async iterator of lines.
+Read the end of a file, or follow it as it grows, the way `tail` and `tail -F` do.
 
 ```python
 from posix_tools import tail
 
 
 async def main() -> None:
-    async with tail("app.log") as lines:
+    # Last line. The stream ends when tail exits.
+    async with tail("app.log", n=1) as lines:
+        last = [line async for line in lines]
+
+    # Live. The stream never ends; leaving the block stops tail.
+    async with tail("app.log", follow=True) as lines:
         async for line in lines:
             print(line)
 ```
 
-`tail(path)` yields an async iterator of `bytes` lines, each with its trailing `\n`.
+`tail(path, n=10, follow=False)` yields an async iterator of `bytes` lines, each with its trailing `\n`.
 
-- **From the start.** It reads the whole file, then waits for new lines.
-- **Follows the name.** It keeps going if the file is rotated or replaced, and waits if the file does not exist yet.
+- **`n`.** How many lines from the end to start with. `n=None` starts from the top of the file.
+- **`follow`.** Keep reading as the file grows. It keeps going if the file is rotated or replaced, and waits if the file does not exist yet. Without `follow`, a missing file raises `FileNotFoundError`.
 - **Long lines.** A line longer than the stream buffer still arrives whole.
 - **Stopping.** Leaving the block, by `break`, error, or cancel, stops `tail` and reaps it. If your process dies, `tail` dies with it.
 - **Cancel-safe.** A cancelled `anext()` keeps the half-read line for the next call.
