@@ -10,7 +10,7 @@ pip install posix-tools
 
 Requires Python 3.12+ on a POSIX system (Linux or macOS). No runtime dependencies.
 
-## `posix_tools.process`
+## `process`
 
 Run a program as its own process group, and know the whole group is gone when the block exits, even if the task is cancelled.
 
@@ -29,14 +29,14 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-`child(program, *args, stdin=, stdout=, stderr=, signum=SIGTERM, grace=10, linger=0, drains=())` yields the `asyncio.subprocess.Process`.
+`process(program, *args, stdin=, stdout=, stderr=, signum=SIGTERM, grace=10, linger=0, drains=())` yields the `asyncio.subprocess.Process`.
 
 - **Start.** The program leads a new process group. Startup is shielded from cancellation; a start that gets cancelled still cleans up what it launched.
 - **Exit.** On normal exit, error, or cancel, the group gets `signum`, then SIGKILL after `grace` seconds. Cleanup then drains owned pipes and reaps. It runs to the end through further cancels.
 - **`linger`.** On normal exit only, wait this many seconds for the group to finish by itself before signalling.
 - **Pipes.** Pipes `child()` creates (`asyncio.subprocess.PIPE`) are owned: the body must stop reading them before it exits, and cleanup drains them. Descriptors you pass in, such as an open file, are borrowed and left open.
 
-## `posix_tools.tail`
+## `tail`
 
 Read the end of a file, or follow it as it grows, the way `tail` and `tail -F` do.
 
