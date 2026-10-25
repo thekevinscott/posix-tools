@@ -1,0 +1,1 @@
+**Added** `tail()`: read a file's last lines, or follow it through rotation and absence, as `bytes` lines. Use it with `async with` to stream, or `await` it for a list. It wraps the system `tail`, stops and reaps it when the block exits, and stops it if the owning process dies.
