@@ -2,10 +2,6 @@
 
 Python APIs that wrap native POSIX tools.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-
-Pre-release. The code is moving here from [botbox](https://github.com/thekevinscott/botbox), its only consumer so far. Nothing is on PyPI yet.
-
 ## Installation
 
 ```bash
@@ -39,8 +35,6 @@ asyncio.run(main())
 - **Exit.** On normal exit, error, or cancel, the group gets `signum`, then SIGKILL after `grace` seconds. Cleanup then drains owned pipes and reaps. It runs to the end through further cancels.
 - **`linger`.** On normal exit only, wait this many seconds for the group to finish by itself before signalling.
 - **Pipes.** Pipes `child()` creates (`asyncio.subprocess.PIPE`) are owned: the body must stop reading them before it exits, and cleanup drains them. Descriptors you pass in, such as an open file, are borrowed and left open.
-
-Known limit: a grandchild that calls `setsid()` leaves the group but can keep a pipe open. Cleanup then waits up to `linger + 2 * grace` and the escaped process leaks ([botbox#184](https://github.com/thekevinscott/botbox/issues/184)).
 
 ## Rules
 
