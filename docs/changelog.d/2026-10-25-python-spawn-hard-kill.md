@@ -1,0 +1,1 @@
+**Fixed** `spawn()`: if the owner dies without running cleanup, for example from SIGKILL, the program and everything it started are killed too. A watcher process holds one end of a pipe the owner keeps open, and kills the process group when that pipe closes.

@@ -6,6 +6,7 @@ from typing import IO, Any
 from posix_tools._spawn.abandon import abandon
 from posix_tools._spawn.settle import settle
 from posix_tools._spawn.stop import stop
+from posix_tools._spawn.watch import watch
 
 type Stream = int | IO[Any] | None
 
@@ -29,6 +30,7 @@ async def spawn(
         await settle(abandon(starting))
         raise
     try:
-        yield process
+        with watch(process.pid):
+            yield process
     finally:
         await settle(stop(process))

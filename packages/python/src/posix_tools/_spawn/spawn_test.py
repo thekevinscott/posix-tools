@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -32,7 +33,39 @@ def stop() -> Iterator[AsyncMock]:
         yield m
 
 
+@pytest.fixture
+def events() -> list[str]:
+    return []
+
+
+@pytest.fixture(autouse=True)
+def watch(events: list[str]) -> Iterator[Mock]:
+    @contextmanager
+    def watching(pgid: int) -> Iterator[None]:
+        events.append(f"watch {pgid}")
+        try:
+            yield
+        finally:
+            events.append("unwatch")
+
+    with patch(f"{__package__}.spawn.watch", autospec=True, side_effect=watching) as m:
+        yield m
+
+
 def describe_spawn() -> None:
+    @pytest.mark.parametrize("error", [None, ValueError("body"), asyncio.CancelledError()])
+    async def it_watches_the_group_until_just_before_stop(
+        stop: AsyncMock, process: Mock, events: list[str], error: BaseException | None
+    ) -> None:
+        process.pid = 7
+        stop.side_effect = lambda *_: events.append("stop")
+        with suppress(ValueError, asyncio.CancelledError):
+            async with spawn("program"):
+                events.append("body")
+                if error is not None:
+                    raise error
+        assert events == ["watch 7", "body", "unwatch", "stop"]
+
     async def it_starts_a_new_session_and_stops_it_on_exit(
         start: AsyncMock, stop: AsyncMock, process: Mock
     ) -> None:
@@ -92,7 +125,7 @@ def describe_spawn() -> None:
         stop.assert_not_called()
 
     async def it_abandons_a_start_cancelled_midway(
-        start: AsyncMock, abandon: AsyncMock, stop: AsyncMock, process: Mock
+        start: AsyncMock, abandon: AsyncMock, stop: AsyncMock, watch: Mock, process: Mock
     ) -> None:
         launched = asyncio.Event()
         abandoned = asyncio.Event()
@@ -123,3 +156,4 @@ def describe_spawn() -> None:
         assert abandoned.is_set()
         abandon.assert_awaited_once()
         stop.assert_not_called()
+        watch.assert_not_called()

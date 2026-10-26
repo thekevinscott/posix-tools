@@ -1,4 +1,5 @@
 import asyncio
+import os
 import signal
 import sys
 
@@ -11,6 +12,23 @@ IGNORE_TERM = (
     "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
     "print('ready', flush=True); time.sleep(60)"
 )
+
+OWNER = """
+import asyncio
+from posix_tools import spawn
+
+async def main():
+    async with spawn("sleep", "60") as process:
+        print(process.pid, flush=True)
+        await asyncio.Event().wait()
+
+asyncio.run(main())
+"""
+
+
+async def gone(pgid: int) -> None:
+    while group_alive(pgid):
+        await asyncio.sleep(0.01)
 
 
 def describe_spawn() -> None:
@@ -58,3 +76,20 @@ def describe_spawn() -> None:
                 await asyncio.sleep(0.1)
         assert process.returncode == -signal.SIGTERM
         assert not group_alive(process.pid)
+
+    @pytest.mark.parametrize("signum", [signal.SIGKILL, signal.SIGTERM], ids=["KILL", "TERM"])
+    async def it_kills_the_group_when_the_owner_dies_without_cleanup(signum: int) -> None:
+        owner = await asyncio.create_subprocess_exec(
+            sys.executable, "-c", OWNER, stdout=asyncio.subprocess.PIPE
+        )
+        assert owner.stdout is not None
+        pgid = int(await owner.stdout.readline())
+        try:
+            assert group_alive(pgid)
+            owner.send_signal(signum)
+            async with asyncio.timeout(5):
+                await owner.wait()
+                await gone(pgid)
+        finally:
+            if group_alive(pgid):
+                os.killpg(pgid, signal.SIGKILL)
