@@ -9,9 +9,6 @@ from posix_tools._spawn.terminate import terminate
 
 type Stream = int | IO[Any] | None
 
-GRACE = 10
-POLL = 0.01
-
 
 @asynccontextmanager
 async def spawn(
@@ -35,17 +32,6 @@ async def spawn(
     try:
         yield process
     finally:
-        # macOS answers EPERM once only unreaped exited members remain, and a group we may not
-        # signal is one we cannot stop either.
-        with suppress(ProcessLookupError, PermissionError):
+        with suppress(ProcessLookupError):
             os.killpg(process.pid, signal.SIGTERM)
-            with suppress(TimeoutError):
-                async with asyncio.timeout(GRACE):
-                    while True:
-                        os.killpg(process.pid, 0)
-                        await asyncio.sleep(POLL)
-            os.killpg(process.pid, signal.SIGKILL)
-            while True:
-                os.killpg(process.pid, 0)
-                await asyncio.sleep(POLL)
         await process.communicate()
