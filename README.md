@@ -31,7 +31,7 @@ asyncio.run(main())
 
 `spawn(program, *args, stdin=, stdout=, stderr=)` yields the `asyncio.subprocess.Process`.
 
-- **Stopping.** Leaving the block, by normal exit, error, or cancel, sends SIGTERM to the program and everything it started, waits until they are all gone, and sends SIGKILL to whatever is left after 10 seconds. A cancel while the program is starting still stops it, and cancels during the wait do not cut it short.
+- **Stopping.** Leaving the block, by normal exit, error, or cancel, sends SIGTERM to the program and everything it started, waits until they are all gone, and sends SIGKILL to whatever is left after 10 seconds. A cancel while the program is starting still stops it.
 
 ## `tail`
 

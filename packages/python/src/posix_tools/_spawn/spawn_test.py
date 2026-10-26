@@ -91,33 +91,6 @@ def describe_spawn() -> None:
         assert group.calls == [SIGTERM, 0, 0, 0, 0]
         process.communicate.assert_awaited_once()
 
-    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
-    async def it_ignores_errors_signalling_the_group(
-        killpg: Mock, group: Group, error: type[OSError]
-    ) -> None:
-        def refuse_term(pgid: int, signum: int) -> None:
-            if signum == SIGTERM:
-                raise error
-            group(pgid, signum)
-
-        killpg.side_effect = refuse_term
-        async with spawn("program"):
-            pass
-        assert group.calls == [0]
-
-    async def it_counts_a_group_it_may_not_signal_as_alive(killpg: Mock, group: Group) -> None:
-        probes = iter([PermissionError, PermissionError, ProcessLookupError])
-
-        def denied(_: int, signum: int) -> None:
-            group.calls.append(signum)
-            if signum == 0:
-                raise next(probes)
-
-        killpg.side_effect = denied
-        async with spawn("program"):
-            pass
-        assert group.calls == [SIGTERM, 0, 0, 0]
-
     @pytest.mark.usefixtures("short_grace")
     async def it_kills_a_group_that_outlives_the_grace(group: Group, process: Mock) -> None:
         group.polls = 10_000
@@ -128,43 +101,30 @@ def describe_spawn() -> None:
         assert set(group.calls[1:-1]) == {0}
         process.communicate.assert_awaited_once()
 
+    async def it_skips_the_wait_for_a_group_that_is_already_gone(
+        killpg: Mock, process: Mock
+    ) -> None:
+        killpg.side_effect = ProcessLookupError
+        async with spawn("program"):
+            pass
+        killpg.assert_called_once_with(7, SIGTERM)
+        process.communicate.assert_awaited_once()
+
     @pytest.mark.usefixtures("short_grace")
-    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
-    async def it_ignores_errors_killing_the_group(
-        killpg: Mock, group: Group, process: Mock, error: type[OSError]
+    async def it_ignores_a_group_gone_before_the_kill(
+        killpg: Mock, group: Group, process: Mock
     ) -> None:
         group.polls = 10_000
 
-        def refuse_kill(pgid: int, signum: int) -> None:
+        def gone_by_kill(pgid: int, signum: int) -> None:
             group(pgid, signum)
             if signum == SIGKILL:
-                raise error
+                raise ProcessLookupError
 
-        killpg.side_effect = refuse_kill
+        killpg.side_effect = gone_by_kill
         async with spawn("program"):
             pass
         assert group.calls[-1] == SIGKILL
-        process.communicate.assert_awaited_once()
-
-    async def it_keeps_waiting_through_cancels_then_raises_the_cancel(
-        group: Group, process: Mock
-    ) -> None:
-        group.polls = 20
-        exited = asyncio.Event()
-
-        async def body() -> None:
-            async with spawn("program"):
-                exited.set()
-
-        task = asyncio.ensure_future(body())
-        await exited.wait()
-        await asyncio.sleep(POLL)
-        task.cancel()
-        await asyncio.sleep(POLL)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
-        assert group.polls == 0
         process.communicate.assert_awaited_once()
 
     async def it_kills_a_program_whose_start_was_cancelled(

@@ -36,25 +36,9 @@ def describe_spawn() -> None:
                 await asyncio.sleep(0.1)
         assert process.returncode == -signal.SIGTERM
 
-    async def it_kills_a_group_that_ignores_sigterm_through_repeated_cancels() -> None:
-        processes: list[asyncio.subprocess.Process] = []
-        ready = asyncio.Event()
-
-        async def run() -> None:
+    async def it_kills_a_group_that_ignores_sigterm() -> None:
+        async with asyncio.timeout(15):
             async with spawn("sh", "-c", IGNORE_TERM, stdout=asyncio.subprocess.PIPE) as process:
-                processes.append(process)
                 assert process.stdout is not None
                 assert await process.stdout.readline() == b"ready\n"
-                ready.set()
-                await asyncio.Event().wait()
-
-        task = asyncio.create_task(run())
-        async with asyncio.timeout(15):
-            await ready.wait()
-            task.cancel()
-            await asyncio.sleep(0.1)
-            task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task
-        [process] = processes
         assert gone(process.pid)
