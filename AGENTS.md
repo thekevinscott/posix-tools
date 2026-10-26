@@ -58,6 +58,15 @@ Before the first `Release` run on a fresh scaffold:
    [first-release guide](https://github.com/thekevinscott/putitoutthere/blob/main/.claude/skills/first-release/reference/trusted-publishers.md)
    has the steps.
 
+## Verify, don't assume
+
+- Never assume a checkable fact. Check the code, logs, CI output, the
+  downstream caller, or run a quick experiment before you say it.
+- Never report "I don't know whether X" when you could have found out.
+  Collect the knowledge up front, without being asked.
+- Ask only for what you cannot find out yourself, such as a decision
+  that belongs to the user.
+
 ## Out of scope
 
 - Don't add unsolicited refactors or hypothetical-future abstractions.
