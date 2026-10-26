@@ -1,0 +1,1 @@
+**Changed** `spawn()` is one function: on exit it sends SIGTERM to the group and waits for the program. No SIGKILL after 10 seconds, no cleanup after the owner is killed outright, and psutil is no longer a dependency.

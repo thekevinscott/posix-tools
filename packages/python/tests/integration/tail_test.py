@@ -1,4 +1,5 @@
 import asyncio
+import os
 import signal
 import sys
 from collections.abc import Iterator
@@ -9,7 +10,6 @@ from unittest.mock import patch
 import pytest
 
 from posix_tools import tail
-from posix_tools._spawn.group_alive import group_alive
 
 ROTATION = 15
 
@@ -50,7 +50,11 @@ def processes() -> Iterator[list[asyncio.subprocess.Process]]:
 
 async def gone(pgid: int) -> None:
     async with asyncio.timeout(5):
-        while group_alive(pgid):
+        while True:
+            try:
+                os.killpg(pgid, 0)
+            except ProcessLookupError:
+                return
             await asyncio.sleep(0.05)
 
 
@@ -185,7 +189,7 @@ def describe_tail() -> None:
             assert owner.stdout is not None
             async with asyncio.timeout(5):
                 pgid = int(await owner.stdout.readline())
-            assert group_alive(pgid)
+            os.killpg(pgid, 0)
             owner.send_signal(signum)
             await owner.wait()
             await gone(pgid)
