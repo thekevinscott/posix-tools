@@ -3,8 +3,6 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import IO, Any
 
-from posix_tools._spawn.abandon import abandon
-from posix_tools._spawn.settle import settle
 from posix_tools._spawn.stop import stop
 
 type Stream = int | IO[Any] | None
@@ -24,11 +22,15 @@ async def spawn(
         )
     )
     try:
-        process = await asyncio.shield(starting)
-    except asyncio.CancelledError:
-        await settle(abandon(starting))
-        raise
-    try:
-        yield process
+        yield await asyncio.shield(starting)
     finally:
-        await settle(stop(process))
+        stopping = asyncio.ensure_future(stop(starting))
+        cancelled = False
+        while not stopping.done():
+            try:
+                await asyncio.wait({stopping})
+            except asyncio.CancelledError:
+                cancelled = True
+        if cancelled:
+            raise asyncio.CancelledError from stopping.exception()
+        stopping.result()
