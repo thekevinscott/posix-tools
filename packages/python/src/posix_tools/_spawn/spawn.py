@@ -9,6 +9,9 @@ from posix_tools._spawn.terminate import terminate
 
 type Stream = int | IO[Any] | None
 
+GRACE = 10
+POLL = 0.01
+
 
 @asynccontextmanager
 async def spawn(
@@ -32,6 +35,23 @@ async def spawn(
     try:
         yield process
     finally:
-        with suppress(ProcessLookupError):
+        with suppress(ProcessLookupError, PermissionError):
             os.killpg(process.pid, signal.SIGTERM)
+        deadline = asyncio.get_running_loop().time() + GRACE
+        cancelled = False
+        # Keep waiting through cancels: callers rely on nothing being left running.
+        with suppress(ProcessLookupError):
+            while True:
+                with suppress(PermissionError):
+                    os.killpg(process.pid, 0)
+                if asyncio.get_running_loop().time() > deadline:
+                    with suppress(PermissionError):
+                        os.killpg(process.pid, signal.SIGKILL)
+                    break
+                try:
+                    await asyncio.sleep(POLL)
+                except asyncio.CancelledError:
+                    cancelled = True
         await process.communicate()
+        if cancelled:
+            raise asyncio.CancelledError

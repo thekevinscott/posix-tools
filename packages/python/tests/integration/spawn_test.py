@@ -6,15 +6,15 @@ import pytest
 
 from posix_tools import spawn
 
+IGNORE_TERM = "trap '' TERM; sleep 60 & echo ready; wait"
 
-async def gone(pgid: int) -> None:
-    async with asyncio.timeout(5):
-        while True:
-            try:
-                os.killpg(pgid, 0)
-            except ProcessLookupError:
-                return
-            await asyncio.sleep(0.05)
+
+def gone(pgid: int) -> bool:
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return True
+    return False
 
 
 def describe_spawn() -> None:
@@ -22,16 +22,39 @@ def describe_spawn() -> None:
         async with spawn("sh", "-c", "sleep 60 & sleep 60") as process:
             await asyncio.sleep(0.1)
         assert process.returncode == -signal.SIGTERM
-        await gone(process.pid)
+        assert gone(process.pid)
 
     async def it_kills_the_group_when_the_body_raises() -> None:
         with pytest.raises(ValueError, match="body"):
             async with spawn("sleep", "60") as process:
                 raise ValueError("body")
-        await gone(process.pid)
+        assert gone(process.pid)
 
     async def it_kills_a_program_whose_output_nobody_reads() -> None:
         async with asyncio.timeout(5):
             async with spawn("yes", stdout=asyncio.subprocess.PIPE) as process:
                 await asyncio.sleep(0.1)
         assert process.returncode == -signal.SIGTERM
+
+    async def it_kills_a_group_that_ignores_sigterm_through_repeated_cancels() -> None:
+        processes: list[asyncio.subprocess.Process] = []
+        ready = asyncio.Event()
+
+        async def run() -> None:
+            async with spawn("sh", "-c", IGNORE_TERM, stdout=asyncio.subprocess.PIPE) as process:
+                processes.append(process)
+                assert process.stdout is not None
+                assert await process.stdout.readline() == b"ready\n"
+                ready.set()
+                await asyncio.Event().wait()
+
+        task = asyncio.create_task(run())
+        async with asyncio.timeout(15):
+            await ready.wait()
+            task.cancel()
+            await asyncio.sleep(0.1)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        [process] = processes
+        assert gone(process.pid)
