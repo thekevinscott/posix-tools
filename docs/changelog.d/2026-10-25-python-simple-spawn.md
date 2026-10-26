@@ -1,0 +1,1 @@
+**Changed** `spawn()` takes only `program`, `*args`, `stdin`, `stdout` and `stderr`. `signum`, `grace`, `linger` and `drains` are gone, and pipes `spawn()` creates are no longer drained on exit. On exit the group gets SIGTERM, then SIGKILL after 10 seconds.

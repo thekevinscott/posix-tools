@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import Iterator
 from unittest.mock import Mock, patch
 
@@ -14,42 +13,25 @@ def group_alive() -> Iterator[Mock]:
 
 
 def describe_ended() -> None:
-    async def it_waits_for_exit_then_drains_then_the_group(group_alive: Mock) -> None:
-        process = Mock(returncode=None, pid=7)
-        drain = asyncio.get_running_loop().create_future()
-        group_alive.side_effect = [True, False]
-        waiting = asyncio.ensure_future(ended(process, [drain]))
-        await asyncio.sleep(0.03)
-        assert not waiting.done()
-        process.returncode = 0
-        await asyncio.sleep(0.03)
-        assert not waiting.done()
-        group_alive.assert_not_called()
-        drain.set_exception(OSError())
-        await asyncio.wait_for(waiting, 1)
-        assert group_alive.call_count == 2
-        group_alive.assert_called_with(7)
-
-    async def it_polls_until_the_leader_exits() -> None:
+    async def it_polls_until_the_leader_exits(group_alive: Mock) -> None:
         process = Mock(returncode=None, pid=7)
 
         async def exits(_: float) -> None:
             process.returncode = 0
 
         with patch(f"{__package__}.ended.asyncio.sleep", autospec=True, side_effect=exits) as sleep:
-            await ended(process, [])
+            await ended(process)
         sleep.assert_awaited_once_with(0.01)
+        group_alive.assert_called_once_with(7)
+
+    async def it_polls_until_the_group_is_gone(group_alive: Mock) -> None:
+        group_alive.side_effect = [True, True, False]
+        with patch(f"{__package__}.ended.asyncio.sleep", autospec=True) as sleep:
+            await ended(Mock(returncode=0, pid=7))
+        assert sleep.await_count == 2
+        group_alive.assert_called_with(7)
 
     async def it_returns_at_once_for_an_exited_leader_and_gone_group() -> None:
         with patch(f"{__package__}.ended.asyncio.sleep", autospec=True) as sleep:
-            await ended(Mock(returncode=0, pid=7), [])
+            await ended(Mock(returncode=0, pid=7))
         sleep.assert_not_called()
-
-    async def it_leaves_drains_running_when_cancelled() -> None:
-        drain = asyncio.get_running_loop().create_future()
-        waiting = asyncio.ensure_future(ended(Mock(returncode=0), [drain]))
-        await asyncio.sleep(0)
-        waiting.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await waiting
-        assert not drain.cancelled()
