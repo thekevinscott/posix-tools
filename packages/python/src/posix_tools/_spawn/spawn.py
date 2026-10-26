@@ -5,13 +5,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from typing import IO, Any
 
+from posix_tools._spawn.terminate import terminate
+
 type Stream = int | IO[Any] | None
-
-
-def terminate(starting: asyncio.Future[asyncio.subprocess.Process]) -> None:
-    if not starting.cancelled() and starting.exception() is None:
-        with suppress(ProcessLookupError):
-            os.killpg(starting.result().pid, signal.SIGTERM)
 
 
 @asynccontextmanager
