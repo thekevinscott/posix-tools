@@ -1,0 +1,1 @@
+**Changed** `spawn()` now finds live members of its process group with [psutil](https://github.com/giampaolo/psutil) instead of scanning `/proc` by hand, so macOS skips zombies the same way Linux does. psutil is now a runtime dependency.
