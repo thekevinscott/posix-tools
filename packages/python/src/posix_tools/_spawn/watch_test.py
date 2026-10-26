@@ -1,4 +1,3 @@
-import subprocess
 from collections.abc import Iterator
 from unittest.mock import Mock, call, patch
 
@@ -29,14 +28,20 @@ def close(calls: Mock) -> Iterator[Mock]:
 
 
 @pytest.fixture(autouse=True)
-def popen(calls: Mock) -> Iterator[Mock]:
-    with patch(f"{__package__}.watch.subprocess.Popen", autospec=True) as m:
-        calls.attach_mock(m, "popen")
+def subprocess(calls: Mock) -> Iterator[Mock]:
+    with patch(f"{__package__}.watch.subprocess", autospec=True) as m:
+        calls.attach_mock(m.Popen, "popen")
         yield m
 
 
+@pytest.fixture
+def popen(subprocess: Mock) -> Mock:
+    popen: Mock = subprocess.Popen
+    return popen
+
+
 def describe_watch() -> None:
-    def it_starts_a_watcher_that_kills_the_group_on_eof(popen: Mock) -> None:
+    def it_starts_a_watcher_that_kills_the_group_on_eof(subprocess: Mock, popen: Mock) -> None:
         with watch(7):
             popen.assert_called_once_with(
                 ("sh", "-c", WATCHER, "sh", "7"),
