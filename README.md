@@ -31,9 +31,7 @@ asyncio.run(main())
 
 `spawn(program, *args, stdin=, stdout=, stderr=)` yields the `asyncio.subprocess.Process`.
 
-- **Stopping.** Leaving the block, by normal exit, error, or cancel, sends SIGTERM to the program and everything it started, then SIGKILL to whatever is left after 10 seconds.
-- **Cancel-safe.** Cleanup finishes even if the task is cancelled again, or was cancelled while the program was starting.
-- **Hard kills.** If your process is killed outright, for example by SIGKILL, the program and everything it started are killed too.
+- **Stopping.** Leaving the block, by normal exit, error, or cancel, sends SIGTERM to the program and everything it started, then waits for the program to exit.
 
 ## `tail`
 
