@@ -5,7 +5,6 @@ import sys
 import pytest
 
 from posix_tools import spawn
-from posix_tools._spawn import stop
 from posix_tools._spawn.group_alive import group_alive
 
 IGNORE_TERM = (
@@ -27,10 +26,7 @@ def describe_spawn() -> None:
                 raise ValueError("body")
         assert not group_alive(process.pid)
 
-    async def it_kills_a_group_that_ignores_sigterm_through_repeated_cancels(
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        monkeypatch.setattr(stop, "GRACE", 0.5)
+    async def it_kills_a_group_that_ignores_sigterm_through_repeated_cancels() -> None:
         processes: list[asyncio.subprocess.Process] = []
         ready = asyncio.Event()
 
@@ -45,7 +41,7 @@ def describe_spawn() -> None:
                 await asyncio.Event().wait()
 
         task = asyncio.create_task(run())
-        async with asyncio.timeout(5):
+        async with asyncio.timeout(15):
             await ready.wait()
             task.cancel()
             await asyncio.sleep(0.1)
