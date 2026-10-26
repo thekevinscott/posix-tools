@@ -33,7 +33,7 @@ asyncio.run(main())
 
 - **Stopping.** Leaving the block, by normal exit, error, or cancel, sends SIGTERM to the program and everything it started, then SIGKILL to whatever is left after 10 seconds.
 - **Cancel-safe.** Cleanup finishes even if the task is cancelled again, or was cancelled while the program was starting.
-- **Hard kills.** If your process is killed with SIGKILL, cleanup cannot run.
+- **Hard kills.** If your process dies without running cleanup, for example by SIGKILL, the program and everything it started get SIGKILL. A copy of your process made by `fork()` without `exec`, such as a `multiprocessing` worker under the `fork` start method, delays this until the copy exits.
 
 ## `tail`
 
