@@ -8,7 +8,7 @@ Python APIs that wrap native POSIX tools.
 pip install posix-tools
 ```
 
-Requires Python 3.12+ on a POSIX system (Linux or macOS). No runtime dependencies.
+Requires Python 3.12+ on a POSIX system (Linux or macOS).
 
 ## `spawn`
 
@@ -65,7 +65,6 @@ Use it with `async with` to stream lines, or `await` it to get them all as a `li
 
 ## Rules
 
-- Standard library only.
 - Nothing here imports botbox. botbox depends on posix-tools, never the reverse.
 
 ## License
