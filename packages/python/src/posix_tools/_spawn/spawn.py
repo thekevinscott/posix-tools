@@ -35,12 +35,13 @@ async def spawn(
     try:
         yield process
     finally:
-        with suppress(ProcessLookupError):
+        # macOS answers EPERM once only unreaped exited members remain, and a group we may not
+        # signal is one we cannot stop either.
+        with suppress(ProcessLookupError, PermissionError):
             os.killpg(process.pid, signal.SIGTERM)
             with suppress(TimeoutError):
                 async with asyncio.timeout(GRACE):
                     while True:
-                        # Raises ProcessLookupError once the group is gone.
                         os.killpg(process.pid, 0)
                         await asyncio.sleep(POLL)
             os.killpg(process.pid, signal.SIGKILL)

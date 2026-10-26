@@ -112,14 +112,32 @@ def describe_spawn() -> None:
             pass
         assert group.calls[-5:] == [SIGKILL, 0, 0, 0, 0]
 
-    async def it_skips_the_wait_for_a_group_that_is_already_gone(
-        killpg: Mock, process: Mock
+    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+    async def it_skips_the_wait_for_a_group_it_cannot_signal(
+        killpg: Mock, process: Mock, error: type[OSError]
     ) -> None:
-        killpg.side_effect = ProcessLookupError
+        killpg.side_effect = error
         async with spawn("program"):
             pass
         killpg.assert_called_once_with(7, SIGTERM)
         process.communicate.assert_awaited_once()
+
+    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+    async def it_stops_waiting_once_the_group_cannot_be_signalled(
+        killpg: Mock, group: Group, error: type[OSError]
+    ) -> None:
+        group.polls = 2
+
+        def refuse_after(pgid: int, signum: int) -> None:
+            try:
+                group(pgid, signum)
+            except ProcessLookupError:
+                raise error from None
+
+        killpg.side_effect = refuse_after
+        async with spawn("program"):
+            pass
+        assert group.calls == [SIGTERM, 0, 0, 0]
 
     @pytest.mark.usefixtures("short_grace")
     async def it_ignores_a_group_gone_before_the_kill(
