@@ -44,4 +44,7 @@ async def spawn(
                         os.killpg(process.pid, 0)
                         await asyncio.sleep(POLL)
             os.killpg(process.pid, signal.SIGKILL)
+            while True:
+                os.killpg(process.pid, 0)
+                await asyncio.sleep(POLL)
         await process.communicate()

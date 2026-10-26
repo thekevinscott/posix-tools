@@ -11,12 +11,15 @@ SIGTERM = 15
 
 
 class Group:
-    def __init__(self, polls: int = 0) -> None:
+    def __init__(self, polls: int = 0, after_kill: int = 0) -> None:
         self.polls = polls
+        self.after_kill = after_kill
         self.calls: list[int] = []
 
     def __call__(self, _: int, signum: int) -> None:
         self.calls.append(signum)
+        if signum == SIGKILL:
+            self.polls = self.after_kill
         if signum == 0:
             if self.polls == 0:
                 raise ProcessLookupError
@@ -97,9 +100,17 @@ def describe_spawn() -> None:
         async with spawn("program"):
             pass
         assert group.calls[0] == SIGTERM
-        assert group.calls[-1] == SIGKILL
-        assert set(group.calls[1:-1]) == {0}
+        assert group.calls[-2:] == [SIGKILL, 0]
+        assert set(group.calls[1:-2]) == {0}
         process.communicate.assert_awaited_once()
+
+    @pytest.mark.usefixtures("short_grace")
+    async def it_waits_until_a_killed_group_is_gone(group: Group) -> None:
+        group.polls = 10_000
+        group.after_kill = 3
+        async with spawn("program"):
+            pass
+        assert group.calls[-5:] == [SIGKILL, 0, 0, 0, 0]
 
     async def it_skips_the_wait_for_a_group_that_is_already_gone(
         killpg: Mock, process: Mock
