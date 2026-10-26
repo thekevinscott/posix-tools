@@ -58,7 +58,7 @@ Use it with `async with` to stream lines, or `await` it to get them all as a `li
 - **`n`.** How many lines from the end to start with. `n=None` starts from the top of the file.
 - **`follow`.** Keep reading as the file grows. It keeps going if the file is rotated or replaced, and waits if the file does not exist yet. Without `follow`, a missing file raises `FileNotFoundError`.
 - **Long lines.** A line longer than the stream buffer still arrives whole.
-- **Stopping.** Leaving the block, by normal exit, error, or cancel, sends SIGTERM to the program and everything it started, waits until they are all gone, and sends SIGKILL to whatever is left after 10 seconds. A cancel while the program is starting still stops it, and cancels during the wait do not cut it short.
+- **Stopping.** Leaving the block, by `break`, error, or cancel, stops `tail` and reaps it. If your process dies, `tail` dies with it.
 - **Cancel-safe.** A cancelled `anext()` keeps the half-read line for the next call.
 
 ## Rules
