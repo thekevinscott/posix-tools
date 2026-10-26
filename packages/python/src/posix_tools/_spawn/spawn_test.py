@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -59,3 +60,50 @@ def describe_spawn() -> None:
         async with spawn("program"):
             pass
         process.communicate.assert_awaited_once()
+
+    async def it_kills_a_program_whose_start_was_cancelled(
+        start: AsyncMock, killpg: Mock, process: Mock
+    ) -> None:
+        launched = asyncio.Event()
+
+        async def slow_start(*_: object, **__: object) -> Mock:
+            await launched.wait()
+            return process
+
+        start.side_effect = slow_start
+
+        async def body() -> None:
+            async with spawn("program"):
+                pytest.fail("body ran")
+
+        task = asyncio.ensure_future(body())
+        await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        killpg.assert_not_called()
+        launched.set()
+        await asyncio.sleep(0.01)
+        killpg.assert_called_once_with(7, SIGTERM)
+
+    async def it_kills_nothing_when_a_cancelled_start_fails(start: AsyncMock, killpg: Mock) -> None:
+        launched = asyncio.Event()
+
+        async def failing_start(*_: object, **__: object) -> Mock:
+            await launched.wait()
+            raise FileNotFoundError
+
+        start.side_effect = failing_start
+
+        async def body() -> None:
+            async with spawn("missing"):
+                pytest.fail("body ran")
+
+        task = asyncio.ensure_future(body())
+        await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        launched.set()
+        await asyncio.sleep(0.01)
+        killpg.assert_not_called()
