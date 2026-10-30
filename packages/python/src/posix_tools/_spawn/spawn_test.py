@@ -36,7 +36,7 @@ def describe_spawn() -> None:
             assert proc is process
             killpg.assert_not_called()
         start.assert_awaited_once_with(
-            "program", "arg", stdin=7, stdout=8, stderr=9, start_new_session=True
+            "program", "arg", stdin=7, stdout=8, stderr=9, limit=2**16, start_new_session=True
         )
         killpg.assert_called_once_with(7, SIGTERM)
         process.communicate.assert_awaited_once()
@@ -45,7 +45,14 @@ def describe_spawn() -> None:
         async with spawn("program"):
             pass
         start.assert_awaited_once_with(
-            "program", stdin=None, stdout=None, stderr=None, start_new_session=True
+            "program", stdin=None, stdout=None, stderr=None, limit=2**16, start_new_session=True
+        )
+
+    async def it_passes_the_limit_on_its_stream_buffers(start: AsyncMock) -> None:
+        async with spawn("program", limit=10):
+            pass
+        start.assert_awaited_once_with(
+            "program", stdin=None, stdout=None, stderr=None, limit=10, start_new_session=True
         )
 
     async def it_kills_the_group_when_the_body_raises(killpg: Mock, process: Mock) -> None:
