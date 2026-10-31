@@ -32,6 +32,7 @@ async def spawn(
     try:
         yield process
     finally:
-        with suppress(ProcessLookupError):
+        # macOS raises EPERM, not ESRCH, when the group holds only zombies.
+        with suppress(ProcessLookupError, PermissionError):
             os.killpg(process.pid, signal.SIGTERM)
         await process.communicate()

@@ -55,8 +55,11 @@ def describe_spawn() -> None:
         killpg.assert_called_once_with(7, SIGTERM)
         process.communicate.assert_awaited_once()
 
-    async def it_waits_for_a_group_that_is_already_gone(killpg: Mock, process: Mock) -> None:
-        killpg.side_effect = ProcessLookupError
+    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+    async def it_waits_for_a_group_that_is_already_gone(
+        killpg: Mock, process: Mock, error: type[OSError]
+    ) -> None:
+        killpg.side_effect = error
         async with spawn("program"):
             pass
         process.communicate.assert_awaited_once()
