@@ -29,7 +29,9 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-`spawn(program, *args, stdin=, stdout=, stderr=)` yields the `asyncio.subprocess.Process`.
+`spawn(program, *args, stdin=, stdout=, stderr=, limit=)` yields the `asyncio.subprocess.Process`.
+
+- **Line length.** `limit` is asyncio's stream buffer limit, 64 KiB by default. `readline` raises `ValueError` on a longer line; pass `limit=sys.maxsize` to read lines of any length.
 
 - **Stopping.** Leaving the block, by normal exit, error, or cancel, sends SIGTERM to the program and everything it started, then waits for the program to exit. It does not wait for the processes the program started: they may still be exiting when the block returns, and one that ignores SIGTERM keeps running. A cancel that lands while the program is starting still stops it.
 

@@ -17,10 +17,17 @@ async def spawn(
     stdin: Stream = None,
     stdout: Stream = None,
     stderr: Stream = None,
+    limit: int = 2**16,
 ) -> AsyncIterator[asyncio.subprocess.Process]:
     starting = asyncio.ensure_future(
         asyncio.create_subprocess_exec(
-            program, *args, stdin=stdin, stdout=stdout, stderr=stderr, start_new_session=True
+            program,
+            *args,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+            limit=limit,
+            start_new_session=True,
         )
     )
     try:
