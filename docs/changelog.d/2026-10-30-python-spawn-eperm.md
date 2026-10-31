@@ -1,0 +1,1 @@
+**Fixed** `spawn()` no longer raises `PermissionError` on macOS when the program has already exited by the time the block ends. macOS reports EPERM rather than ESRCH when signalling a group of zombies.
