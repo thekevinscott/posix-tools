@@ -22,8 +22,9 @@ def describe_terminate() -> None:
         terminate(starting)
         killpg.assert_called_once_with(7, SIGTERM)
 
-    async def it_ignores_a_group_that_is_gone(killpg: Mock) -> None:
-        killpg.side_effect = ProcessLookupError
+    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+    async def it_ignores_a_group_that_is_gone(killpg: Mock, error: type[OSError]) -> None:
+        killpg.side_effect = error
         starting = asyncio.get_running_loop().create_future()
         starting.set_result(Mock(pid=7))
         terminate(starting)
