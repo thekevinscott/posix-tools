@@ -1,4 +1,5 @@
+from posix_tools._spawn.settle import settle
 from posix_tools._spawn.spawn import spawn
 from posix_tools._tail.tail import tail
 
-__all__ = ["spawn", "tail"]
+__all__ = ["settle", "spawn", "tail"]
