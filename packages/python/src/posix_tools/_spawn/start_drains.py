@@ -18,7 +18,7 @@ def start_drains(
             if owner is not None:
                 owner.cancel()
 
-    for reader, sink in zip((process.stdout, process.stderr), sinks, strict=True):
+    for reader, sink in ((process.stdout, sinks[0]), (process.stderr, sinks[1])):
         if reader is not None and sink is not None:
             task = asyncio.create_task(drain(reader, sink))
             task.add_done_callback(failed)

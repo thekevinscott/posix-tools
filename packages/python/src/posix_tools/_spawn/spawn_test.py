@@ -135,6 +135,27 @@ def describe_spawn() -> None:
         killpg.assert_called_once_with(7, SIGKILL)
         process.wait.assert_awaited_once_with()
 
+    async def it_preserves_the_first_sink_failure(process: Mock) -> None:
+        stdout = asyncio.StreamReader()
+        stderr = asyncio.StreamReader()
+        stdout.feed_data(b"out")
+        stderr.feed_data(b"err")
+        stdout.feed_eof()
+        stderr.feed_eof()
+        process.stdout = stdout
+        process.stderr = stderr
+        process.wait = AsyncMock(return_value=0)
+
+        def first(_chunk: bytes) -> None:
+            raise OSError("stdout failed")
+
+        def second(_chunk: bytes) -> None:
+            raise ValueError("stderr failed")
+
+        with pytest.raises(OSError, match="stdout failed"):
+            async with spawn("program", stdout=first, stderr=second):
+                await asyncio.Event().wait()
+
     @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
     async def it_waits_for_a_group_that_is_already_gone(
         killpg: Mock, process: Mock, error: type[OSError]

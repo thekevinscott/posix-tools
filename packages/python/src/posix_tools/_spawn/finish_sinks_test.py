@@ -21,10 +21,15 @@ def describe_finish_sinks() -> None:
         stdout = asyncio.StreamReader()
         stderr = asyncio.StreamReader()
         gate = asyncio.Event()
+        cancelled = asyncio.Event()
 
         async def waiting() -> int:
-            await gate.wait()
-            return 0
+            try:
+                await gate.wait()
+                return 0
+            except asyncio.CancelledError:
+                cancelled.set()
+                raise
 
         async def failed() -> None:
             raise OSError("sink full")
@@ -40,3 +45,5 @@ def describe_finish_sinks() -> None:
             drains = {stdout: existing, stderr: asyncio.create_task(drain(stderr, None))}
             await finish_sinks(process, drains)
         assert drain.await_count == 1
+        await asyncio.sleep(0)
+        assert cancelled.is_set()
