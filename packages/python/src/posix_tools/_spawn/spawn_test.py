@@ -93,6 +93,48 @@ def describe_spawn() -> None:
             await task
         killpg.assert_called_once_with(7, SIGKILL)
 
+    async def it_sends_chunks_to_a_sink_without_buffering(
+        process: Mock, start: AsyncMock, killpg: Mock
+    ) -> None:
+        reader = asyncio.StreamReader()
+        reader.feed_data(b"out")
+        reader.feed_eof()
+        process.stdout = reader
+        process.stderr = None
+        process.stdin = None
+        process.wait = AsyncMock(return_value=0)
+        received: list[bytes] = []
+        async with spawn("program", stdout=received.append):
+            pass
+        assert received == [b"out"]
+        start.assert_awaited_once_with(
+            "program",
+            stdin=None,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=None,
+            limit=2**16,
+            start_new_session=True,
+        )
+        killpg.assert_called_once_with(7, SIGTERM)
+        process.wait.assert_awaited_once_with()
+
+    async def it_reaps_and_raises_when_a_sink_fails(process: Mock, killpg: Mock) -> None:
+        reader = asyncio.StreamReader()
+        reader.feed_data(b"out")
+        reader.feed_eof()
+        process.stdout = reader
+        process.stderr = None
+        process.wait = AsyncMock(return_value=0)
+
+        def full(_chunk: bytes) -> None:
+            raise OSError("full")
+
+        with pytest.raises(OSError, match="full"):
+            async with spawn("program", stdout=full):
+                await asyncio.Event().wait()
+        killpg.assert_called_once_with(7, SIGKILL)
+        process.wait.assert_awaited_once_with()
+
     @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
     async def it_waits_for_a_group_that_is_already_gone(
         killpg: Mock, process: Mock, error: type[OSError]
