@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from posix_tools import settle
+from posix_tools._spawn.settle import settle
 
 
 def describe_settle() -> None:
