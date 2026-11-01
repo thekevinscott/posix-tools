@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from typing import IO, Any
 
+from posix_tools._spawn.settle import settle
 from posix_tools._spawn.terminate import terminate
 
 type Stream = int | IO[Any] | None
@@ -38,8 +39,12 @@ async def spawn(
         raise
     try:
         yield process
-    finally:
         # macOS raises EPERM, not ESRCH, when the group holds only zombies.
         with suppress(ProcessLookupError, PermissionError):
             os.killpg(process.pid, signal.SIGTERM)
         await process.communicate()
+    except BaseException:
+        with suppress(ProcessLookupError, PermissionError):
+            os.killpg(process.pid, signal.SIGKILL)
+        await settle(process.communicate())
+        raise

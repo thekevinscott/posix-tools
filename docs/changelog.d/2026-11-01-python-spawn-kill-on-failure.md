@@ -1,0 +1,1 @@
+Fixed `spawn` cleanup after a block failure or cancellation. It now sends SIGKILL to the process group, drains its pipes, and reaps the program before propagating the error, even through repeated cancellation.
