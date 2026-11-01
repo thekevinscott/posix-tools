@@ -1,5 +1,4 @@
 import asyncio
-import signal
 from collections.abc import Iterator
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -8,6 +7,7 @@ import pytest
 from posix_tools._spawn.spawn import spawn
 
 SIGTERM = 15
+SIGKILL = 9
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def describe_spawn() -> None:
         with pytest.raises(ValueError, match="body"):
             async with spawn("program"):
                 raise ValueError("body")
-        killpg.assert_called_once_with(7, signal.SIGKILL)
+        killpg.assert_called_once_with(7, SIGKILL)
         process.communicate.assert_awaited_once()
 
     async def it_kills_and_reaps_through_repeated_cancels(process: Mock, killpg: Mock) -> None:
@@ -91,7 +91,7 @@ def describe_spawn() -> None:
         reaped.set()
         with pytest.raises(asyncio.CancelledError):
             await task
-        killpg.assert_called_once_with(7, signal.SIGKILL)
+        killpg.assert_called_once_with(7, SIGKILL)
 
     @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
     async def it_waits_for_a_group_that_is_already_gone(
