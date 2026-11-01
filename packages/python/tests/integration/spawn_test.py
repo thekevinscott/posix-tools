@@ -7,6 +7,13 @@ import pytest
 
 from posix_tools import spawn
 
+NOISY = """
+import os, signal
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+while True:
+    os.write(1, b"x" * 65536)
+"""
+
 
 async def gone(pgid: int) -> None:
     async with asyncio.timeout(5):
@@ -36,6 +43,34 @@ def describe_spawn() -> None:
             async with spawn("yes", stdout=asyncio.subprocess.PIPE) as process:
                 await asyncio.sleep(0.1)
         assert process.returncode == -signal.SIGTERM
+
+    async def it_kills_and_reaps_a_noisy_program_on_cancellation() -> None:
+        started = asyncio.Event()
+        running: list[asyncio.subprocess.Process] = []
+
+        async def run() -> None:
+            async with spawn(sys.executable, "-c", NOISY, stdout=asyncio.subprocess.PIPE) as proc:
+                running.append(proc)
+                started.set()
+                await asyncio.Event().wait()
+
+        task = asyncio.create_task(run())
+        await started.wait()
+        await asyncio.sleep(0.1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(asyncio.shield(task), 5)
+        assert running[0].returncode == -signal.SIGKILL
+
+    async def it_kills_and_reaps_a_noisy_program_on_body_failure() -> None:
+        with pytest.raises(ValueError, match="body"):
+            async with asyncio.timeout(5):
+                async with spawn(
+                    sys.executable, "-c", NOISY, stdout=asyncio.subprocess.PIPE
+                ) as process:
+                    await asyncio.sleep(0.1)
+                    raise ValueError("body")
+        assert process.returncode == -signal.SIGKILL
 
     async def it_reads_lines_up_to_the_default_limit() -> None:
         line = b"x" * (2**16 - 1) + b"\n"
